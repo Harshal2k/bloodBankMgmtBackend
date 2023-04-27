@@ -6,6 +6,10 @@ const jwt = require("jsonwebtoken");
 const createHospital = async (req, res) => {
     try {
         //add joi validations
+        const body = req?.body;
+        if (!body?.bloodBanks) {
+            return res.status(400).send({ type: 'error', message: 'Blood banks are required' });
+        }
 
         const { rows } = await db.client.query(
             'select hid from hospital where phone = $1', [req?.body?.phone]
@@ -13,15 +17,22 @@ const createHospital = async (req, res) => {
         if (rows?.length > 0) {
             return res.status(400).send({ type: 'error', message: 'Hospital already exists' });
         }
-        const body = req?.body;
+        db.client.query('BEGIN');
         const { result } = await db.client.query(
             'insert into hospital (hname,phone,email,country,state,city,locality) values ($1,$2,$3,$4,$5,$6,$7)',
             [body?.hname, body?.phone, body?.email, body?.country, body?.state, body?.city, body?.locality]
         );
-
+        body?.bloodBanks.forEach(async (bank) => {
+            await db.client.query(
+                'insert into hospital_bank_rln (hospital_id,bank_id,created_on) values ($1,$2,$3)',
+                [result[0]?.hid, bank, new Date()]
+            );
+        });
+        db.client.query('COMMIT');
         return res.status(400).send({ type: 'success', message: "Hospital Created Successfully" });
     } catch (error) {
         console.log(error);
+        db.client.query('ROLLBACK');
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
     }
 }
@@ -30,23 +41,38 @@ const updateHospital = async (req, res) => {
     try {
         //add joi validations
 
-        const bank_id = req.params['bank_id'];
-        if (!bank_id) {
+        const h_id = req.params['h_id'];
+        if (!h_id) {
             return res.status(400).send({ type: 'error', message: 'Hospital Id is Required' });
         }
 
         const { rows } = await db.client.query(
-            'select * from blood_bank where blood_bank_id = $1', [bank_id]
+            'select * from hospital where hid = $1', [h_id]
         );
         if (rows?.length == 0) {
             return res.status(400).send({ type: 'error', message: 'Hospital does not exists' });
         }
         const body = req?.body;
         const { result } = await db.client.query(
-            'update blood_bank set b_name=$1,email=$2,country=$3,state=$4,city=$5,locality=$6',
-            [body?.b_name, body?.email, body?.country, body?.state, body?.city, body?.locality]
+            'update hospital set hname=$1,email=$2,country=$3,state=$4,city=$5,locality=$6',
+            [body?.hname, body?.email, body?.country, body?.state, body?.city, body?.locality]
         );
 
+        if (body?.bloodBanks?.length > 0) {
+            const relatedBanks = db.client.query(
+                'select bank_id from hospital_bank_rln where hospital_id=$1',
+                [h_id]
+            );
+            const bankIds = relatedBanks?.rows?.map((bank) => bank?.bank_id);
+            body?.bloodBanks.forEach(async (bank) => {
+                if (!bankIds?.includes(bank)) {
+                    await db.client.query(
+                        'insert into hospital_bank_rln (hospital_id,bank_id,created_on) values ($1,$2,$3)',
+                        [result[0]?.hid, bank, new Date()]
+                    );
+                }
+            });
+        }
         return res.status(400).send({ type: 'success', message: "Hospital Updated Successfully" });
     } catch (error) {
         console.log(error);
@@ -58,32 +84,32 @@ const deleteHospital = async (req, res) => {
     try {
         //add joi validations
 
-        const bank_id = req.params['bank_id'];
-        if (!bank_id) {
+        const h_id = req.params['h_id'];
+        if (!h_id) {
             return res.status(400).send({ type: 'error', message: 'Hospital Id is Required' });
         }
 
         const { rows } = await db.client.query(
-            'select * from blood_bank where blood_bank_id = $1', [bank_id]
+            'select * from hospital where hid = $1', [h_id]
         );
         if (rows?.length == 0) {
             return res.status(400).send({ type: 'error', message: 'Hospital does not exists' });
         }
 
-        const bags = await db.client.query(
-            'select * from blood_bag where bb_id = $1 limit 1', [bank_id]
+        const bank_hosp = await db.client.query(
+            'select * from hospital_bank_rln where h_id = $1 limit 1', [h_id]
         );
 
-        const hospital = await db.client.query(
-            'select * from hospital_bank_rln where bank_id = $1 limit 1', [bank_id]
+        const patients = await db.client.query(
+            'select * from patient where hospital_id = $1 limit 1', [h_id]
         );
 
-        if (bags?.rows?.length > 0 || hospital?.rows?.length > 0) {
+        if (bank_hosp?.rows?.length > 0 || patients?.rows?.length > 0) {
             return res.status(400).send({ type: 'error', message: 'Hospital Cannot be deleted' });
         }
 
         await db.client.query(
-            'delete from blood_bank where blood_bank_id = $1', [bank_id]
+            'delete from hospital where hid = $1', [h_id]
         );
 
         return res.status(400).send({ type: 'success', message: "Hospital Deleted Successfully" });
@@ -98,7 +124,7 @@ function buildWhere(filters) {
         let toReturn = 'where '
         Object.keys(filters)?.forEach((key) => {
             switch (key) {
-                case "b_name":
+                case "hname":
                     filters?.b_name?.length > 0 ? toReturn += `b_name ilike '${filters?.b_name}' and ` : null;
                     break;
                 case "country":
@@ -129,7 +155,7 @@ const getHospital = async (req, res) => {
         //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
-            `select * from blood_bank ${buildWhere(body?.filters)} order by blood_bank_id desc`
+            `select * from hospital ${buildWhere(body?.filters)} order by hid desc`
         );
 
         return res.status(400).send({ type: 'success', message: rows });
@@ -143,30 +169,30 @@ const getHospitalDetails = async (req, res) => {
     try {
         //add joi validations
 
-        const bank_id = req.params['bank_id'];
-        if (!bank_id) {
+        const h_id = req.params['h_id'];
+        if (!h_id) {
             return res.status(400).send({ type: 'error', message: 'Hospital Id is Required' });
         }
 
         const { rows } = await db.client.query(
-            'select * from blood_bank where blood_bank_id = $1', [bank_id]
+            'select * from hospital where hid = $1', [h_id]
         );
         if (rows?.length == 0) {
             return res.status(400).send({ type: 'error', message: 'Hospital does not exists' });
         }
 
-        const bags = await db.client.query(
-            'select * from blood_bag where bb_id = $1', [bank_id]
+        const banks = await db.client.query(
+            'select * from blood_bank bb inner join hospital_bank_rln hbr ON bb.blood_bank_id = hbr.bank_id where hbr.hospital_id = $1', [h_id]
         );
 
-        const hospitals = await db.client.query(
-            'select * from hospital where hid in (select hospital_id from hospital_bank_rln where bank_id=$1) ', [bank_id]
+        const patients = await db.client.query(
+            'select * from patient p where hospital_id = $1', [h_id]
         );
 
         let toReturn = {
             ...rows[0],
-            bags: donations?.rows || [],
-            hospitals: donatedTo?.rows || [],
+            banks: banks?.rows || [],
+            patients: patients?.rows || [],
         };
 
         return res.status(400).send({ type: 'success', message: toReturn });
