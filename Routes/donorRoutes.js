@@ -9,7 +9,7 @@ router.patch('/updateDonor/:donor_id', updateDonor);
 
 router.delete('/deleteDonor/:donor_id', deleteDonor);
 
-router.get('/getDonors', getDonors);
+router.post('/getDonors', getDonors);
 
 router.get('/getDonor/:donor_id', getDonorDetails);
 

@@ -10,7 +10,7 @@ router.patch('/updateBank/:bank_id', updateBank);
 
 router.delete('/deleteBank/:bank_id', deleteBank);
 
-router.get('/getBanks', getBanks);
+router.post('/getBanks', getBanks);
 
 router.get('/getBank/:bank_id', getBankDetails);
 

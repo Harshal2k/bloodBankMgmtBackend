@@ -16,10 +16,10 @@ const createDonor = async (req, res) => {
         const body = req?.body;
         const { result } = await db.client.query(
             'insert into donor (first_name,last_name,gender,blood_type,country,state,city,locality,phone,email,dob,created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
-            [body?.fName, body?.lName, body?.gender, body?.bloodType, body?.country, body?.state, body?.city, body?.locality, body?.phone, body?.email, body?.dob, body?.createdAt]
+            [body?.first_name, body?.last_name, body?.gender, body?.blood_type, body?.country, body?.state, body?.city, body?.locality, body?.phone, body?.email, body?.dob, body?.created_at]
         );
 
-        return res.status(400).send({ type: 'success', message: "User Created Successfully" });
+        return res.status(200).send({ type: 'success', message: "User Created Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -43,11 +43,11 @@ const updateDonor = async (req, res) => {
         }
         const body = req?.body;
         const { result } = await db.client.query(
-            'update donor set first_name=$1,last_name=$2,gender=$3,blood_type=$4,country=$5,state=$6,city=$7,locality=$8,email=$10,dob=$11,created_at=$12 where donor_id = $13',
-            [body?.fName, body?.lName, body?.gender, body?.bloodType, body?.country, body?.state, body?.city, body?.locality, body?.email, body?.dob, body?.createdAt, donor_id]
+            'update donor set first_name=$1,last_name=$2,gender=$3,blood_type=$4,country=$5,state=$6,city=$7,locality=$8,email=$9,dob=$10,created_at=$11 where donor_id = $12',
+            [body?.first_name, body?.last_name, body?.gender, body?.blood_type, body?.country, body?.state, body?.city, body?.locality, body?.email, body?.dob, body?.created_at, donor_id]
         );
 
-        return res.status(400).send({ type: 'success', message: "User Updated Successfully" });
+        return res.status(200).send({ type: 'success', message: "User Updated Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -82,7 +82,7 @@ const deleteDonor = async (req, res) => {
             'delete from donor where donor_id = $1', [donor_id]
         );
 
-        return res.status(400).send({ type: 'success', message: "User Deleted Successfully" });
+        return res.status(200).send({ type: 'success', message: "User Deleted Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -94,33 +94,33 @@ function buildWhere(filters) {
         let toReturn = 'where '
         Object.keys(filters)?.forEach((key) => {
             switch (key) {
-                case "fName":
-                    filters?.fName?.length > 0 ? toReturn += `first_name ilike '${filters?.fName}' and ` : null;
+                case "first_name":
+                    filters?.first_name?.length > 0 ? toReturn += `first_name ilike '%${filters?.first_name}%' and ` : null;
                     break;
-                case "lName":
-                    filters?.lName?.length > 0 ? toReturn += `last_name ilike '${filters?.lName}' and ` : null;
+                case "last_name":
+                    filters?.last_name?.length > 0 ? toReturn += `last_name ilike '%${filters?.last_name}%' and ` : null;
                     break;
                 case "gender":
                     filters?.gender?.length > 0 ? toReturn += `gender = '${filters?.gender}' and ` : null;
                     break;
-                case "bloodType":
-                    filters?.bloodType?.length > 0 ? toReturn += `blood_type = '${filters?.bloodType}' and ` : null;
+                case "blood_type":
+                    filters?.blood_type?.length > 0 ? toReturn += `blood_type = '${filters?.blood_type}' and ` : null;
                     break;
                 case "country":
-                    filters?.country?.length > 0 ? toReturn += `country ilike '${filters?.country}' and ` : null;
+                    filters?.country?.length > 0 ? toReturn += `country ilike '%${filters?.country}%' and ` : null;
                     break;
                 case "dob":
                     filters?.dob?.length > 0 ? toReturn += `dob >= '${filters?.dob}' and ` : null;
                     break;
                 case "phone":
-                    filters?.phone?.length > 0 ? toReturn += `phone ilike '${filters?.phone}' and ` : null;
+                    filters?.phone?.length > 0 ? toReturn += `phone ilike '%${filters?.phone}%' and ` : null;
                     break;
                 case "email":
-                    filters?.email?.length > 0 ? toReturn += `email ilike '${filters?.email}' and ` : null;
+                    filters?.email?.length > 0 ? toReturn += `email ilike '%${filters?.email}%' and ` : null;
                     break;
-                case "createdAt":
-                    filters?.createdAt?.length > 0 ? toReturn += `created_at >= '${filters?.createdAt}' and ` : null;
-                    break;
+                // case "created_at":
+                //     filters?.created_at?.length > 0 ? toReturn += `created_at >= '${filters?.created_at}' and ` : null;
+                //     break;
                 default:
                     break;
             }
@@ -142,8 +142,8 @@ const getDonors = async (req, res) => {
         const { rows } = await db.client.query(
             `select * from donor ${buildWhere(body?.filters)} order by donor_id desc`
         );
-
-        return res.status(400).send({ type: 'success', message: rows });
+        console.log({ dquery: `select * from donor ${buildWhere(body?.filters)} order by donor_id desc` })
+        return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -181,7 +181,7 @@ const getDonorDetails = async (req, res) => {
             donatedTo: donatedTo?.rows || [],
         };
 
-        return res.status(400).send({ type: 'success', message: toReturn });
+        return res.status(200).send({ type: 'success', message: toReturn });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });

@@ -8,7 +8,7 @@ const createBank = async (req, res) => {
         //add joi validations
 
         const { rows } = await db.client.query(
-            'select donor_id from blood_bank where phone = $1', [req?.body?.phone]
+            'select blood_bank_id from blood_bank where phone = $1', [req?.body?.phone]
         );
         if (rows?.length > 0) {
             return res.status(400).send({ type: 'error', message: 'Blood bank already exists' });
@@ -19,7 +19,7 @@ const createBank = async (req, res) => {
             [body?.b_name, body?.phone, body?.email, body?.country, body?.state, body?.city, body?.locality]
         );
 
-        return res.status(400).send({ type: 'success', message: "Blood bank Created Successfully" });
+        return res.status(200).send({ type: 'success', message: "Blood bank Created Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -43,11 +43,11 @@ const updateBank = async (req, res) => {
         }
         const body = req?.body;
         const { result } = await db.client.query(
-            'update blood_bank set b_name=$1,email=$2,country=$3,state=$4,city=$5,locality=$6',
-            [body?.b_name, body?.email, body?.country, body?.state, body?.city, body?.locality]
+            'update blood_bank set b_name=$1,email=$2,country=$3,state=$4,city=$5,locality=$6 where blood_bank_id = $7',
+            [body?.b_name, body?.email, body?.country, body?.state, body?.city, body?.locality, bank_id]
         );
 
-        return res.status(400).send({ type: 'success', message: "Blood bank Updated Successfully" });
+        return res.status(200).send({ type: 'success', message: "Blood bank Updated Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -86,7 +86,7 @@ const deleteBank = async (req, res) => {
             'delete from blood_bank where blood_bank_id = $1', [bank_id]
         );
 
-        return res.status(400).send({ type: 'success', message: "Blood bank Deleted Successfully" });
+        return res.status(200).send({ type: 'success', message: "Blood bank Deleted Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -99,16 +99,16 @@ function buildWhere(filters) {
         Object.keys(filters)?.forEach((key) => {
             switch (key) {
                 case "b_name":
-                    filters?.b_name?.length > 0 ? toReturn += `b_name ilike '${filters?.b_name}' and ` : null;
+                    filters?.b_name?.length > 0 ? toReturn += `b_name ilike '%${filters?.b_name}%' and ` : null;
                     break;
                 case "country":
-                    filters?.country?.length > 0 ? toReturn += `country ilike '${filters?.country}' and ` : null;
+                    filters?.country?.length > 0 ? toReturn += `country ilike '&${filters?.country}%' and ` : null;
                     break;
                 case "phone":
-                    filters?.phone?.length > 0 ? toReturn += `phone ilike '${filters?.phone}' and ` : null;
+                    filters?.phone?.length > 0 ? toReturn += `phone ilike '%${filters?.phone}%' and ` : null;
                     break;
                 case "email":
-                    filters?.email?.length > 0 ? toReturn += `email ilike '${filters?.email}' and ` : null;
+                    filters?.email?.length > 0 ? toReturn += `email ilike '%${filters?.email}%' and ` : null;
                     break;
                 default:
                     break;
@@ -129,10 +129,10 @@ const getBanks = async (req, res) => {
         //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
-            `select * from blood_bank ${buildWhere(body?.filters)} order by blood_bank_id desc`
+            `select * from blood_bank ${buildWhere(body?.filters || {})} order by blood_bank_id desc`
         );
-
-        return res.status(400).send({ type: 'success', message: rows });
+        console.log({ query: `select * from blood_bank ${buildWhere(body?.filters || {})} order by blood_bank_id desc` })
+        return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -169,7 +169,7 @@ const getBankDetails = async (req, res) => {
             hospitals: donatedTo?.rows || [],
         };
 
-        return res.status(400).send({ type: 'success', message: toReturn });
+        return res.status(200).send({ type: 'success', message: toReturn });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
