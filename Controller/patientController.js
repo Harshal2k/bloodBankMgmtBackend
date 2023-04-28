@@ -41,7 +41,7 @@ const createPatient = async (req, res) => {
             [body.bagId, Number(bloodBag?.remaining_ml) - Number(body?.received_quantity)]
         );
         db.client.query('COMMIT');
-        return res.status(400).send({ type: 'success', message: "Patient Created Successfully" });
+        return res.status(200).send({ type: 'success', message: "Patient Created Successfully" });
     } catch (error) {
         db.client.query('ROLLBACK');
         console.log(error);
@@ -61,7 +61,7 @@ const updatePatient = async (req, res) => {
         const { rows } = await db.client.query(
             'select * from patient where pid = $1', [pid]
         );
-        
+
         if (rows?.length == 0) {
             return res.status(400).send({ type: 'error', message: 'Patient does not exists' });
         }
@@ -71,7 +71,7 @@ const updatePatient = async (req, res) => {
             [body?.fName, body?.lName, body?.dob, pid]
         );
 
-        return res.status(400).send({ type: 'success', message: "Patient Updated Successfully" });
+        return res.status(200).send({ type: 'success', message: "Patient Updated Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -83,20 +83,20 @@ function buildWhere(filters) {
         let toReturn = 'where '
         Object.keys(filters)?.forEach((key) => {
             switch (key) {
-                case "fName":
-                    filters?.fName?.length > 0 ? toReturn += `first_name ilike '${filters?.fName}' and ` : null;
+                case "first_name":
+                    filters?.first_name?.length > 0 ? toReturn += `first_name ilike '%${filters?.first_name}%' and ` : null;
                     break;
-                case "lName":
-                    filters?.lName?.length > 0 ? toReturn += `last_name ilike '${filters?.lName}' and ` : null;
+                case "last_name":
+                    filters?.last_name?.length > 0 ? toReturn += `last_name ilike '%${filters?.last_name}%' and ` : null;
                     break;
                 case "gender":
                     filters?.gender?.length > 0 ? toReturn += `gender = '${filters?.gender}' and ` : null;
                     break;
-                case "bloodType":
-                    filters?.bloodType?.length > 0 ? toReturn += `blood_type = '${filters?.bloodType}' and ` : null;
+                case "blood_type":
+                    filters?.blood_type?.length > 0 ? toReturn += `blood_type = '${filters?.blood_type}' and ` : null;
                     break;
-                case "hospital_id":
-                    filters?.hospital_id?.length > 0 ? toReturn += `hospital_id = '${filters?.hospital_id}' and ` : null;
+                case "hname":
+                    filters?.hname?.length > 0 ? toReturn += `hname ilike '%${filters?.hname}%' and ` : null;
                     break;
                 case "dob":
                     filters?.dob?.length > 0 ? toReturn += `dob >= '${filters?.dob}' and ` : null;
@@ -126,10 +126,9 @@ const getPatients = async (req, res) => {
         //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
-            `select * from patient ${buildWhere(body?.filters)} order by pid desc`
+            `select * from patient p inner join hospital h on p.hospital_id = h.hid ${buildWhere(body?.filters) || ''} order by pid desc`
         );
-
-        return res.status(400).send({ type: 'success', message: rows });
+        return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -148,7 +147,7 @@ const getPatientDetails = async (req, res) => {
         const { rows } = await db.client.query(
             'select * from patient where pid = $1', [pid]
         );
-        
+
         if (rows?.length == 0) {
             return res.status(400).send({ type: 'error', message: 'Patient does not exists' });
         }
@@ -167,7 +166,7 @@ const getPatientDetails = async (req, res) => {
             hospital: hospital?.rows[0] || [],
         };
 
-        return res.status(400).send({ type: 'success', message: toReturn });
+        return res.status(200).send({ type: 'success', message: toReturn });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });

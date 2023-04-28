@@ -7,7 +7,7 @@ router.post('/createPatient', createPatient);
 
 router.patch('/updatePatient/:pid', updatePatient);
 
-router.get('/getPatients', getPatients);
+router.post('/getPatients', getPatients);
 
 router.get('/getPatient/:pid', getPatientDetails);
 

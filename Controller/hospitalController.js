@@ -126,23 +126,34 @@ function buildWhere(filters) {
     if (Object.keys(filters)?.length > 0) {
         let toReturn = 'where '
         Object.keys(filters)?.forEach((key) => {
+            console.log({ key })
             switch (key) {
                 case "hname":
-                    filters?.b_name?.length > 0 ? toReturn += `b_name ilike '${filters?.b_name}' and ` : null;
+                    filters?.hname?.length > 0 ? toReturn += `hname ilike '%${filters?.hname}%' and ` : null;
                     break;
                 case "country":
-                    filters?.country?.length > 0 ? toReturn += `country ilike '${filters?.country}' and ` : null;
+                    filters?.country?.length > 0 ? toReturn += `country ilike '%${filters?.country}%' and ` : null;
+                    break;
+                case "state":
+                    filters?.state?.length > 0 ? toReturn += `state ilike '%${filters?.state}%' and ` : null;
+                    break;
+                case "city":
+                    filters?.city?.length > 0 ? toReturn += `city ilike '%${filters?.city}%' and ` : null;
+                    break;
+                case "locality":
+                    filters?.locality?.length > 0 ? toReturn += `locality ilike '%${filters?.locality}%' and ` : null;
                     break;
                 case "phone":
-                    filters?.phone?.length > 0 ? toReturn += `phone ilike '${filters?.phone}' and ` : null;
+                    filters?.phone?.length > 0 ? toReturn += `phone ilike '%${filters?.phone}%' and ` : null;
                     break;
                 case "email":
-                    filters?.email?.length > 0 ? toReturn += `email ilike '${filters?.email}' and ` : null;
+                    filters?.email?.length > 0 ? toReturn += `email ilike '%${filters?.email}%' and ` : null;
                     break;
                 default:
                     break;
             }
         });
+        console.log({ toReturn })
         if (toReturn == 'where ') {
             return;
         } else {
@@ -158,9 +169,9 @@ const getHospital = async (req, res) => {
         //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
-            `select * from hospital ${body?.filters ? '' : buildWhere(body?.filters)} order by hid desc`
+            `select * from hospital ${buildWhere(body?.filters)} order by hid desc`
         );
-
+        console.log({ query: `select * from hospital ${buildWhere(body?.filters)} order by hid desc` })
         return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);

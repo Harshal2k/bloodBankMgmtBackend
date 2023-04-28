@@ -24,7 +24,7 @@ const createDonor = async (req, res) => {
             'insert into blood_bag (blood_type,expiry_date,donation_date,quantity_ml,remaining_ml,bb_id,donor_id) values ($1,$2,$3,$4,$5,$6,$7)',
             [body?.blood_type, moment(body?.created_at).add(45, 'days'), body?.created_at, body?.quantity_ml, body?.quantity_ml, body?.bb_id, result?.rows[0]?.donor_id]
         );
-        console.log({ result: result?.rows });
+
         return res.status(200).send({ type: 'success', message: "User Created Successfully" });
     } catch (error) {
         console.log(error);

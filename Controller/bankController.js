@@ -126,12 +126,10 @@ function buildWhere(filters) {
 
 const getBanks = async (req, res) => {
     try {
-        //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
             `select * from blood_bank ${buildWhere(body?.filters || {})} order by blood_bank_id desc`
         );
-        console.log({ query: `select * from blood_bank ${buildWhere(body?.filters || {})} order by blood_bank_id desc` })
         return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);
@@ -192,6 +190,53 @@ const getBankDetails = async (req, res) => {
     }
 }
 
+const getDashboardData = async (req, res) => {
+    try {
+        const donors = await db.client.query('select count(donor_id) from donor d');
+        const donations = await db.client.query('select count(bag_id) from blood_bag bb ');
+        const hospitals = await db.client.query('select count(hid) from hospital h ');
+        const bloodBanks = await db.client.query('select count(blood_bank_id) from blood_bank bb ');
+        const patients = await db.client.query('select count(pid) from patient p');
+        const bloodQuantities = await db.client.query(
+            'select blood_type,sum(remaining_ml) from blood_bag bb where expiry_date > $1 group by blood_type',
+            [new Date()]
+        );
+        let filteredQuantities = {}
+        bloodQuantities?.rows?.forEach((elem) => {
+            filteredQuantities[elem?.blood_type] = elem?.sum;
+        });
+        const bloodInBloodBank = await db.client.query(
+            `SELECT bb.blood_bank_id, bb.b_name, 
+            SUM(CASE WHEN bg.blood_type='A+' THEN remaining_ml ELSE 0 END) AS A_positive,
+            SUM(CASE WHEN bg.blood_type='B+' THEN remaining_ml ELSE 0 END) AS B_positive,
+            SUM(CASE WHEN bg.blood_type='AB+' THEN remaining_ml ELSE 0 END) AS AB_positive,
+            SUM(CASE WHEN bg.blood_type='A-' THEN remaining_ml ELSE 0 END) AS A_negative,
+            SUM(CASE WHEN bg.blood_type='B-' THEN remaining_ml ELSE 0 END) AS B_negative,
+            SUM(CASE WHEN bg.blood_type='AB-' THEN remaining_ml ELSE 0 END) AS AB_negative,
+            SUM(CASE WHEN bg.blood_type='O+' THEN remaining_ml ELSE 0 END) AS O_positive,
+            SUM(CASE WHEN bg.blood_type='O-' THEN remaining_ml ELSE 0 END) AS O_negative
+            FROM blood_bank bb JOIN blood_bag bg ON bb.blood_bank_id = bg.bb_id
+            where bg.expiry_date > $1 GROUP BY bb.blood_bank_id, bb.b_name;`,
+            [new Date()]
+        );
+
+        let toReturn = {
+            donors: donors?.rows[0]?.count,
+            donations: donations?.rows[0]?.count,
+            hospitals: hospitals?.rows[0]?.count,
+            bloodBanks: bloodBanks?.rows[0]?.count,
+            patients: patients?.rows[0]?.count,
+            bloodQuantities: filteredQuantities,
+            bloodInBloodBank: bloodInBloodBank?.rows
+        };
+
+        return res.status(200).send({ type: 'success', message: toReturn });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
+    }
+}
+
 
 
 module.exports = {
@@ -200,5 +245,6 @@ module.exports = {
     deleteBank,
     getBanks,
     getBankDonors,
-    getBankDetails
+    getBankDetails,
+    getDashboardData
 }
