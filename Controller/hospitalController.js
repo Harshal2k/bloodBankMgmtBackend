@@ -18,18 +18,20 @@ const createHospital = async (req, res) => {
             return res.status(400).send({ type: 'error', message: 'Hospital already exists' });
         }
         db.client.query('BEGIN');
-        const { result } = await db.client.query(
-            'insert into hospital (hname,phone,email,country,state,city,locality) values ($1,$2,$3,$4,$5,$6,$7)',
+        const result = await db.client.query(
+            'insert into hospital (hname,phone,email,country,state,city,locality) values ($1,$2,$3,$4,$5,$6,$7) returning hid',
             [body?.hname, body?.phone, body?.email, body?.country, body?.state, body?.city, body?.locality]
         );
-        body?.bloodBanks.forEach(async (bank) => {
+
+        for (let i = 0; i < body?.bloodBanks?.length; i++) {
+            let bank = body?.bloodBanks[i];
             await db.client.query(
                 'insert into hospital_bank_rln (hospital_id,bank_id,created_on) values ($1,$2,$3)',
-                [result[0]?.hid, bank, new Date()]
+                [result?.rows[0]?.hid, bank?.id, new Date()]
             );
-        });
+        }
         db.client.query('COMMIT');
-        return res.status(400).send({ type: 'success', message: "Hospital Created Successfully" });
+        return res.status(200).send({ type: 'success', message: "Hospital Created Successfully" });
     } catch (error) {
         console.log(error);
         db.client.query('ROLLBACK');
@@ -54,26 +56,27 @@ const updateHospital = async (req, res) => {
         }
         const body = req?.body;
         const { result } = await db.client.query(
-            'update hospital set hname=$1,email=$2,country=$3,state=$4,city=$5,locality=$6',
-            [body?.hname, body?.email, body?.country, body?.state, body?.city, body?.locality]
+            'update hospital set hname=$1,email=$2,country=$3,state=$4,city=$5,locality=$6 where hid = $7',
+            [body?.hname, body?.email, body?.country, body?.state, body?.city, body?.locality, h_id]
         );
 
         if (body?.bloodBanks?.length > 0) {
-            const relatedBanks = db.client.query(
+            const relatedBanks = await db.client.query(
                 'select bank_id from hospital_bank_rln where hospital_id=$1',
                 [h_id]
             );
             const bankIds = relatedBanks?.rows?.map((bank) => bank?.bank_id);
-            body?.bloodBanks.forEach(async (bank) => {
-                if (!bankIds?.includes(bank)) {
+            for (let i = 0; i < body?.bloodBanks?.length; i++) {
+                let bank = body?.bloodBanks[i];
+                if (!bankIds?.includes(bank?.id)) {
                     await db.client.query(
                         'insert into hospital_bank_rln (hospital_id,bank_id,created_on) values ($1,$2,$3)',
-                        [result[0]?.hid, bank, new Date()]
+                        [h_id, bank?.id, new Date()]
                     );
                 }
-            });
+            }
         }
-        return res.status(400).send({ type: 'success', message: "Hospital Updated Successfully" });
+        return res.status(200).send({ type: 'success', message: "Hospital Updated Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -112,7 +115,7 @@ const deleteHospital = async (req, res) => {
             'delete from hospital where hid = $1', [h_id]
         );
 
-        return res.status(400).send({ type: 'success', message: "Hospital Deleted Successfully" });
+        return res.status(200).send({ type: 'success', message: "Hospital Deleted Successfully" });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -155,10 +158,26 @@ const getHospital = async (req, res) => {
         //add joi validations
         const body = req?.body;
         const { rows } = await db.client.query(
-            `select * from hospital ${buildWhere(body?.filters)} order by hid desc`
+            `select * from hospital ${body?.filters ? '' : buildWhere(body?.filters)} order by hid desc`
         );
 
-        return res.status(400).send({ type: 'success', message: rows });
+        return res.status(200).send({ type: 'success', message: rows });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
+    }
+}
+
+const getHospitalBanks = async (req, res) => {
+    try {
+        //add joi validations
+        const h_id = req.params['h_id'];
+        const { rows } = await db.client.query(
+            `select hbr.bank_id as id,b_name as label from hospital_bank_rln hbr inner join blood_bank bb on hbr.bank_id = bb.blood_bank_id where hospital_id = $1`,
+            [h_id]
+        );
+
+        return res.status(200).send({ type: 'success', message: rows });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -195,7 +214,7 @@ const getHospitalDetails = async (req, res) => {
             patients: patients?.rows || [],
         };
 
-        return res.status(400).send({ type: 'success', message: toReturn });
+        return res.status(200).send({ type: 'success', message: toReturn });
     } catch (error) {
         console.log(error);
         return res.status(500).send({ type: 'error', message: 'Something Went Wrong!' });
@@ -209,5 +228,6 @@ module.exports = {
     updateHospital,
     deleteHospital,
     getHospital,
+    getHospitalBanks,
     getHospitalDetails
 }

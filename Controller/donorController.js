@@ -1,5 +1,6 @@
 //importing modules
 //const bcrypt = require("bcrypt");
+const moment = require("moment");
 const db = require("../db");
 const jwt = require("jsonwebtoken");
 
@@ -14,11 +15,16 @@ const createDonor = async (req, res) => {
             return res.status(400).send({ type: 'error', message: 'Donor already exists' });
         }
         const body = req?.body;
-        const { result } = await db.client.query(
-            'insert into donor (first_name,last_name,gender,blood_type,country,state,city,locality,phone,email,dob,created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+        const result = await db.client.query(
+            'insert into donor (first_name,last_name,gender,blood_type,country,state,city,locality,phone,email,dob,created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning donor_id',
             [body?.first_name, body?.last_name, body?.gender, body?.blood_type, body?.country, body?.state, body?.city, body?.locality, body?.phone, body?.email, body?.dob, body?.created_at]
         );
 
+        await db.client.query(
+            'insert into blood_bag (blood_type,expiry_date,donation_date,quantity_ml,remaining_ml,bb_id,donor_id) values ($1,$2,$3,$4,$5,$6,$7)',
+            [body?.blood_type, moment(body?.created_at).add(45, 'days'), body?.created_at, body?.quantity_ml, body?.quantity_ml, body?.bb_id, result?.rows[0]?.donor_id]
+        );
+        console.log({ result: result?.rows });
         return res.status(200).send({ type: 'success', message: "User Created Successfully" });
     } catch (error) {
         console.log(error);

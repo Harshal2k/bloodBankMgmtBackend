@@ -10,7 +10,7 @@ router.patch('/updateBloodBag/:bag_id', updateBloodBag);
 
 router.delete('/deleteBloodBag/:bag_id', deleteBloodBag);
 
-router.get('/getBloodBag', getBloodBags);
+router.post('/getBloodBags', getBloodBags);
 
 router.get('/getBloodBag/:bag_id', getBloodBagDetails);
 

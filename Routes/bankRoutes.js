@@ -1,6 +1,6 @@
 const express = require('express')
 const { createDonor, updateDonor, deleteDonor, getDonors, getDonorDetails } = require("../Controller/donorController");
-const { createBank, updateBank, deleteBank, getBanks, getBankDetails } = require('../Controller/bankController');
+const { createBank, updateBank, deleteBank, getBanks, getBankDetails, getBankDonors } = require('../Controller/bankController');
 
 const router = express.Router()
 
@@ -11,6 +11,8 @@ router.patch('/updateBank/:bank_id', updateBank);
 router.delete('/deleteBank/:bank_id', deleteBank);
 
 router.post('/getBanks', getBanks);
+
+router.post('/getBanksDonors/:bank_id', getBankDonors);
 
 router.get('/getBank/:bank_id', getBankDetails);
 
